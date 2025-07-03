@@ -1,9 +1,11 @@
-from fastapi import APIRouter, HTTPException, Response, Request
+from fastapi import APIRouter, HTTPException, Response
 
+from src.api.dependencies import UserIdDep
 from src.database import async_session_maker
 from src.repositories.users import UsersRepository
 from src.schemas.users import UserRequestAdd, UserAdd
 from src.services.auth import AuthService
+from src.schemas.users import User
 
 router = APIRouter(prefix="/auth", tags=["Авторизация и Аутентификация"])
 
@@ -26,7 +28,7 @@ async def login_user(
         response: Response
 ):
     async with async_session_maker() as session:
-        user = await UsersRepository(session).get_user_with_hased_password(email=data.email)
+        user = await UsersRepository(session).get_user_with_hashed_password(email=data.email)
         if not user:
             raise HTTPException(status_code=401, detail="Такой пользователь не зарегистрирован")
         if not AuthService().verify_password(data.password, user.hashed_password):
@@ -35,7 +37,17 @@ async def login_user(
         response.set_cookie("access_token", access_token)
         return {"access_token":access_token}
 
-@router.get("/only_auth")
-async def only_auth(request: Request):
-    access_token = request.cookies.get("access_token")  # ← вот здесь магия
-    return {"access_token": access_token}
+
+@router.post("/logout")
+async def logout_user(response: Response):
+    response.delete_cookie("access_token")
+    return {"status": "OK", "message": "Logged out"}
+
+
+@router.get("/me", response_model=User)
+async def get_me(
+        user_id: UserIdDep
+):
+    async with async_session_maker() as session:
+        user = await UsersRepository(session).get_one_or_none(id=user_id)
+        return user
