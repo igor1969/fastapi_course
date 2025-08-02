@@ -2,7 +2,6 @@ from compileall import compile_path
 
 from fastapi import Query, APIRouter, Body
 
-from sqlalchemy import insert, select, func
 
 from src.api.dependencies import PaginationDep
 from src.database import async_session_maker
